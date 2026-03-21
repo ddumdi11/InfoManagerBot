@@ -1,0 +1,143 @@
+from __future__ import annotations
+
+import json
+import sqlite3
+from dataclasses import dataclass
+from datetime import datetime, timezone
+
+from infomanagerbot.config.models import PolicyModel, SourceModel
+from infomanagerbot.domain.models import Policy, Source
+
+
+@dataclass(slots=True)
+class PolicyRepository:
+    connection: sqlite3.Connection
+
+    def sync(self, policies: list[PolicyModel]) -> None:
+        for policy in policies:
+            self.connection.execute(
+                """
+                INSERT INTO policies (
+                    policy_key,
+                    enabled,
+                    archive_format,
+                    match_source_ids_json,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(policy_key) DO UPDATE SET
+                    enabled = excluded.enabled,
+                    archive_format = excluded.archive_format,
+                    match_source_ids_json = excluded.match_source_ids_json,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (
+                    policy.id,
+                    int(policy.enabled),
+                    policy.archive_format,
+                    json.dumps(policy.match_source_ids),
+                ),
+            )
+        self.connection.commit()
+
+    def list_all(self) -> list[Policy]:
+        rows = self.connection.execute(
+            """
+            SELECT policy_key, enabled, archive_format, match_source_ids_json
+            FROM policies
+            ORDER BY policy_key
+            """
+        ).fetchall()
+        return [
+            Policy(
+                id=row["policy_key"],
+                enabled=bool(row["enabled"]),
+                archive_format=row["archive_format"],
+                match_source_ids=json.loads(row["match_source_ids_json"]),
+            )
+            for row in rows
+        ]
+
+
+@dataclass(slots=True)
+class SourceRepository:
+    connection: sqlite3.Connection
+
+    def sync(self, sources: list[SourceModel]) -> None:
+        for source in sources:
+            self.connection.execute(
+                """
+                INSERT INTO sources (
+                    source_key,
+                    source_type,
+                    enabled,
+                    display_name,
+                    locator,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ON CONFLICT(source_key) DO UPDATE SET
+                    source_type = excluded.source_type,
+                    enabled = excluded.enabled,
+                    display_name = excluded.display_name,
+                    locator = excluded.locator,
+                    updated_at = CURRENT_TIMESTAMP
+                """,
+                (
+                    source.id,
+                    source.type.value,
+                    int(source.enabled),
+                    source.display_name,
+                    source.locator,
+                ),
+            )
+        self.connection.commit()
+
+    def list_all(self) -> list[Source]:
+        rows = self.connection.execute(
+            """
+            SELECT source_key, source_type, enabled, display_name, locator
+            FROM sources
+            ORDER BY source_key
+            """
+        ).fetchall()
+        return [
+            Source(
+                id=row["source_key"],
+                source_type=row["source_type"],
+                enabled=bool(row["enabled"]),
+                display_name=row["display_name"],
+                locator=row["locator"],
+            )
+            for row in rows
+        ]
+
+
+@dataclass(slots=True)
+class RunRepository:
+    connection: sqlite3.Connection
+
+    def create_run(self, status: str = "prepared", notes: str | None = None) -> int:
+        cursor = self.connection.execute(
+            """
+            INSERT INTO runs (started_at, status, notes)
+            VALUES (?, ?, ?)
+            """,
+            (datetime.now(timezone.utc).isoformat(), status, notes),
+        )
+        run_id = cursor.lastrowid
+        if run_id is None:
+            raise RuntimeError("Failed to create run: sqlite3 did not return a lastrowid.")
+        self.connection.commit()
+        return run_id
+
+    def finish_run(self, run_id: int, status: str, notes: str | None = None) -> None:
+        self.connection.execute(
+            """
+            UPDATE runs
+            SET finished_at = ?, status = ?, notes = ?
+            WHERE id = ?
+            """,
+            (datetime.now(timezone.utc).isoformat(), status, notes, run_id),
+        )
+        self.connection.commit()

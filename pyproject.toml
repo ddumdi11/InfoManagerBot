@@ -1,0 +1,25 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "infomanagerbot"
+version = "0.1.0"
+description = "Minimal MVP baseline for the InfoManagerBot project."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+authors = [
+  { name = "InfoManagerBot contributors" }
+]
+dependencies = [
+  "feedparser>=6.0,<7.0",
+  "pydantic>=2.7,<3.0",
+  "PyYAML>=6.0,<7.0",
+]
+
+[project.scripts]
+infomanagerbot = "infomanagerbot.main:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/infomanagerbot"]

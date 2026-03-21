@@ -1,0 +1,13 @@
+# Beispielstruktur fuer Quellen im MVP.
+# Reale Quellen oder Zugangsdaten gehoeren nicht in diese Datei.
+sources:
+  - id: "example-rss"
+    type: "rss_atom"
+    enabled: true
+    display_name: "Beispiel RSS Quelle"
+    locator: "https://example.invalid/feed.xml"
+  - id: "example-youtube"
+    type: "youtube_channel"
+    enabled: false
+    display_name: "Beispiel YouTube Kanal"
+    locator: "https://example.invalid/channel/example"
