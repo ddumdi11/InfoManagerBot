@@ -1,0 +1,6 @@
+# Beispielstruktur fuer allgemeine Projekteinstellungen im MVP.
+settings:
+  app_name: "InfoManagerBot"
+  log_level: "INFO"
+  environment: "local"
+  database_path: "data/infomanagerbot.sqlite3"

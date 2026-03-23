@@ -1,0 +1,6 @@
+# Beispielstruktur fuer einfache Verarbeitungsrichtlinien im MVP.
+policies:
+  - id: "default"
+    enabled: true
+    match_source_ids: []
+    archive_format: "markdown"
