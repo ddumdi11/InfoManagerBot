@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from infomanagerbot.config.models import PolicyModel, SourceModel
-from infomanagerbot.domain.models import DiscoveredItem, Policy, Source
+from infomanagerbot.domain.models import DiscoveredItem, PersistedItem, Policy, Source
 
 
 @dataclass(slots=True)
@@ -156,9 +156,10 @@ class ItemRepository:
                 url,
                 status,
                 discovered_at,
-                published_at
+                published_at,
+                content_text
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 source_id,
@@ -169,6 +170,7 @@ class ItemRepository:
                 status,
                 discovered_at,
                 published_at,
+                item.content_text,
             ),
         )
         item_id = cursor.lastrowid
@@ -176,6 +178,91 @@ class ItemRepository:
             raise RuntimeError("Item konnte nicht gespeichert werden.")
         self.connection.commit()
         return int(item_id)
+
+    def list_items_for_archiving(self) -> list[PersistedItem]:
+        rows = self.connection.execute(
+            """
+            SELECT
+                items.id AS item_id,
+                items.source_id,
+                sources.source_key,
+                sources.source_type,
+                items.external_id,
+                items.title,
+                items.url,
+                items.discovered_at,
+                items.published_at,
+                items.run_id,
+                items.status,
+                items.content_text
+            FROM items
+            INNER JOIN sources ON sources.id = items.source_id
+            WHERE items.status = 'discovered'
+            ORDER BY items.id
+            """
+        ).fetchall()
+        return [
+            PersistedItem(
+                item_id=int(row["item_id"]),
+                source_id=int(row["source_id"]),
+                source_key=row["source_key"],
+                source_type=row["source_type"],
+                external_id=row["external_id"],
+                title=row["title"],
+                url=row["url"],
+                discovered_at=row["discovered_at"],
+                published_at=row["published_at"],
+                run_id=row["run_id"],
+                status=row["status"],
+                content_text=row["content_text"],
+            )
+            for row in rows
+        ]
+
+    def mark_as_archived(self, item_id: int) -> None:
+        cursor = self.connection.execute(
+            "UPDATE items SET status = 'archived' WHERE id = ?",
+            (item_id,),
+        )
+        if cursor.rowcount == 0:
+            raise RuntimeError(f"Item konnte nicht als archiviert markiert werden: id={item_id}.")
+        self.connection.commit()
+
+
+@dataclass(slots=True)
+class ArtifactRepository:
+    connection: sqlite3.Connection
+
+    def exists(self, item_id: int, artifact_type: str) -> bool:
+        row = self.connection.execute(
+            """
+            SELECT 1
+            FROM artifacts
+            WHERE item_id = ? AND artifact_type = ?
+            """,
+            (item_id, artifact_type),
+        ).fetchone()
+        return row is not None
+
+    def create_artifact(
+        self,
+        item_id: int,
+        artifact_type: str,
+        storage_path: str,
+        content_format: str,
+    ) -> int:
+        cursor = self.connection.execute(
+            """
+            INSERT INTO artifacts (item_id, artifact_type, storage_path, content_format)
+            VALUES (?, ?, ?, ?)
+            """,
+            (item_id, artifact_type, storage_path, content_format),
+        )
+        artifact_id = cursor.lastrowid
+        if artifact_id is None:
+            raise RuntimeError("Artefakt konnte nicht registriert werden.")
+        self.connection.commit()
+        return int(artifact_id)
 
 
 @dataclass(slots=True)

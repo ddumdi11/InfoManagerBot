@@ -11,4 +11,5 @@
 - YouTube-Kanal-Discovery ueber den oeffentlichen Channel-Feed als zweiten Adaptertyp vorbereitet.
 - Kleine Konsolidierungsrunde: robusteres RSS-Bozo-Handling, atomarere Repository-Syncs und klarere Validierungs-/Logging-Fehler ergänzt.
 - Ersten echten Discovery-Lauf mit Deduplizierung und minimaler Item-Persistenz in SQLite ergänzt.
+- Erste Archivierungsschicht mit `metadata.json`, `content.md` und Artifact-Registrierung im Dateisystem ergänzt.
 - Browser-Capture weiterhin bewusst nicht Teil von Phase 1.

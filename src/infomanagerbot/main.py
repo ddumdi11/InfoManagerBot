@@ -7,8 +7,10 @@ from pathlib import Path
 from infomanagerbot.config.loader import load_app_config
 from infomanagerbot.logging_config import setup_logging
 from infomanagerbot.orchestrator import Orchestrator
+from infomanagerbot.archive.writer import ArchiveWriter
 from infomanagerbot.persistence.connection import create_connection, resolve_database_path
 from infomanagerbot.persistence.repositories import (
+    ArtifactRepository,
     ItemRepository,
     PolicyRepository,
     RunRepository,
@@ -75,6 +77,7 @@ def main() -> int:
         )
         source_repository = SourceRepository(connection)
         item_repository = ItemRepository(connection)
+        artifact_repository = ArtifactRepository(connection)
         source_repository.sync(app_config.sources)
         PolicyRepository(connection).sync(app_config.policies)
 
@@ -87,13 +90,26 @@ def main() -> int:
             item_repository=item_repository,
             run_id=run_id,
         )
+        run_info = orchestrator.execute_archiving(
+            item_repository=item_repository,
+            artifact_repository=artifact_repository,
+            archive_writer=ArchiveWriter(output_dir=Path("output")),
+            run_info=run_info,
+        )
         run_repository.finish_run(
             run_id=run_id,
             status=run_info.status,
             notes=run_info.notes,
         )
 
-    LOGGER.info("Discovery-Lauf abgeschlossen: status=%s new=%s known=%s errors=%s", run_info.status, run_info.new_item_count, run_info.known_item_count, run_info.error_count)
+    LOGGER.info(
+        "Discovery- und Archivierungs-Lauf abgeschlossen: status=%s new=%s known=%s archived=%s errors=%s",
+        run_info.status,
+        run_info.new_item_count,
+        run_info.known_item_count,
+        run_info.archived_item_count,
+        run_info.error_count,
+    )
 
     print("Projektgrundgeruest geladen.")
     print("Konfiguration erfolgreich geprueft.")
@@ -102,12 +118,12 @@ def main() -> int:
         f"Datenbank: {database_path} | Migrationen: {', '.join(applied_migrations) if applied_migrations else 'keine neuen'}."
     )
     print(
-        "Discovery und Item-Persistenz wurden ausgefuehrt. "
+        "Discovery, Item-Persistenz und erste Archivierung wurden ausgefuehrt. "
         f"Neue Items: {run_info.new_item_count}, bekannte Items: {run_info.known_item_count}, Fehler: {run_info.error_count}."
     )
     print(
-        "Archivierung und weitere Verarbeitung folgen spaeter. "
-        f"Aktive Quellen: {run_info.source_count}, verarbeitete Quellen: {run_info.processed_source_count}."
+        "Archivartefakte wurden fuer neu verarbeitete Items geschrieben. "
+        f"Archivierte Items: {run_info.archived_item_count}, aktive Quellen: {run_info.source_count}, verarbeitete Quellen: {run_info.processed_source_count}."
     )
     return 0
 
