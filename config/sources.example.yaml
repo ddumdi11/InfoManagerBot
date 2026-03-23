@@ -10,4 +10,4 @@ sources:
     type: "youtube_channel"
     enabled: false
     display_name: "Beispiel YouTube Kanal"
-    locator: "https://example.invalid/channel/example"
+    locator: "UC0000000000000000000000"

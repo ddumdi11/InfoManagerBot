@@ -6,6 +6,7 @@ Ziel:
 Lege eine saubere MVP-Grundstruktur für das Projekt an, ohne schon Implementierungslogik zu erfinden. Nutze bestehende Dateien weiter, überschreibe nichts unnötig, und arbeite konservativ, nachvollziehbar und minimal.
 
 Wichtige Leitplanken:
+
 - Dies ist ein source-first Projekt.
 - Browser-Capture ist noch NICHT Teil des MVP.
 - Jetzt geht es nur um Repo-Grundstruktur, Dokumentationsstruktur und Basiskonfiguration.
@@ -67,6 +68,7 @@ Aufgaben:
 10. Füge keine unnötigen Tools, Dependencies oder Framework-Dateien hinzu.
 
 Wichtig:
+
 - Arbeite minimalistisch und strukturiert.
 - Keine Overengineering-Spuren.
 - Keine Platzhaltertexte wie "TODO everything".
@@ -380,3 +382,318 @@ Am Ende:
 - Erkläre kurz, wie die externe ID für RSS-Einträge bestimmt wird.
 - Nenne bewusst noch nicht implementierte Teile.
 - Erwähne kurz den neuen `dev_log.md`-Eintrag.
+
+## PROMPT 5
+
+Du arbeitest im Repo "InfoManagerBot" auf dem aktuell ausgecheckten Feature-Branch.
+
+Wichtige Prozessanweisung:
+
+- Bleibe auf dem aktuellen Branch.
+- Führe keinen Push aus.
+- Erstelle keinen Pull Request.
+- Nimm keine Git-Operationen vor, die Branches wechseln, mergen oder remote verändern.
+- Nach Abschluss deiner Änderungen sollst du stoppen und auf unser Go warten.
+
+Ziel:
+Erweitere das MVP-Grundgerüst um den zweiten geplanten Quellentyp: YouTube-Kanal-Discovery. Baue dazu einen kleinen, sauberen YouTube-Adapter, der neue Videoeinträge aus einem Kanalfeed in normierte `DiscoveredItem`s überführt. Es geht noch nicht um Transkript-Erfassung, Archivierung, Item-Persistenz oder eine vollständige Pipeline.
+
+Wichtige Leitplanken:
+
+- Konservativ und minimal arbeiten.
+- Bestehende Struktur respektieren.
+- Kein Overengineering.
+- Keine Browser-Capture-Logik.
+- Keine Transkript-Logik in dieser Runde.
+- Keine Item-Speicherung in SQLite.
+- Keine vollständige Orchestrierungs- oder Polling-Logik.
+- Kein Vollausbau der Registry über das Nötige hinaus.
+- Adapter liefern normierte Daten, nicht mehr.
+
+Wichtiger Zusatzauftrag zur Doku:
+
+- Pflege `docs/planning/dev_log.md` mit einem knappen neuen Eintrag für diesen Arbeitsschritt.
+- Halte den Eintrag kurz, sachlich und entscheidungsorientiert.
+
+Aufgaben:
+
+1. Implementiere einen YouTube-Discovery-Adapter unter:
+   - `src/infomanagerbot/adapters/youtube.py`
+
+2. Nutze für YouTube einen pragmatischen Feed-basierten Ansatz.
+   Anforderungen:
+   - Kein API-Key-Zwang
+   - Kein YouTube-Data-API-Setup
+   - Kein Download von Videos
+   - Kein Transkriptabruf
+   - Fokus nur auf Discovery von Kanalinhalten
+   - Verwende einen stabilen, einfachen Weg über den Kanalfeed
+
+3. Ergänze die Adapter-Registry so, dass neben RSS jetzt auch `youtube_channel` unterstützt wird.
+   - Klein halten
+   - Keine unnötige Abstraktionsinflation
+
+4. Ergänze Config-Modelle nur minimal, falls für YouTube ein sinnvolles Feld fehlt.
+   Anforderungen:
+   - keine große Umbauaktion
+   - keine Vorwegnahme von Browser- oder Transkript-Sonderlogik
+   - falls möglich mit bestehenden Source-Feldern arbeiten
+   - wenn du ein spezifisches Feld ergänzt (z. B. channel_id), dann knapp und konsistent
+
+5. Ergänze `config/sources.example.yaml` um eine neutrale YouTube-Beispielquelle, die zur Modellstruktur passt.
+   - keine echten produktiven Kanäle
+   - neutrale Platzhalterwerte
+
+6. Ergänze vorhandene Domänenmodelle nur minimal, falls YouTube-spezifische Discovery-Felder wirklich nötig sind.
+   Aber:
+   - `DiscoveredItem` nicht unnötig aufblasen
+   - nur ergänzen, wenn RSS und YouTube gemeinsam davon profitieren
+
+7. Ergänze den Orchestrator nur minimal, falls nötig.
+   Anforderungen:
+   - maximal so weit, dass ein Discovery-Schritt für verschiedene Adapter vorbereitet werden kann
+   - keine Endlosschleife
+   - keine vollständige Gesamtpipeline
+
+8. Lege nach Möglichkeit einen kleinen Test an:
+   - z. B. Mapping eines YouTube-Feed-Eintrags in `DiscoveredItem`
+   - nur wenn sinnvoll und ohne Test-Overkill
+
+9. Ergänze `pyproject.toml` nur dann, wenn für den Feed-basierten YouTube-Ansatz wirklich eine zusätzliche Dependency nötig ist.
+   Falls bestehende RSS/Atom-Mechanik bzw. `feedparser` schon reicht, verwende bevorzugt das.
+
+10. README nur dann minimal ergänzen, wenn jetzt ein kurzer, ehrlicher Hinweis zum Entwicklungsstand sinnvoll ist.
+    Sonst lieber nicht anfassen.
+
+Wichtig:
+
+- Kein YouTube-Transcript in dieser Runde.
+- Kein Download von Medien.
+- Keine Speicherung der entdeckten Items in SQLite.
+- Kein Vorgriff auf spätere Volltext-/Archivlogik.
+- Kein API-Key-Management.
+- Keine künstliche Universalabstraktion.
+
+Am Ende:
+
+- Zeige die angelegten/geänderten Dateien.
+- Erkläre kurz, wie der YouTube-Adapter Discovery betreibt.
+- Erkläre kurz, wie die externe ID für YouTube-Einträge bestimmt wird.
+- Nenne bewusst noch nicht implementierte Teile.
+- Erwähne kurz den neuen `dev_log.md`-Eintrag.
+- Bestätige ausdrücklich, dass du NICHT gepusht und KEINEN PR erstellt hast.
+
+## PROMPT 6
+
+Du arbeitest im Repo "InfoManagerBot" auf dem aktuell ausgecheckten Feature-Branch.
+
+Wichtige Prozessanweisung:
+
+- Bleibe auf dem aktuellen Branch.
+- Führe keinen Push aus.
+- Erstelle keinen Pull Request.
+- Nimm keine Git-Operationen vor, die Branches wechseln, mergen oder remote verändern.
+- Nach Abschluss deiner Änderungen sollst du stoppen und auf unser Go warten.
+
+Ziel:
+
+Führe eine kleine, gezielte Konsolidierungs- und Qualitätsrunde durch. Übernimm nur die sinnvollen, aktuell passenden Verbesserungen aus dem Code-Review. Kein großer neuer Feature-Block in dieser Runde.
+
+Wichtige Leitplanken:
+
+- Konservativ und minimal arbeiten.
+- Bestehende Struktur respektieren.
+- Kein Overengineering.
+- Keine neuen größeren Features.
+- Keine YouTube-Transkripte.
+- Keine Browser-Capture-Logik.
+- Keine Item-Persistenz in dieser Runde.
+- Keine Gesamtpipeline in dieser Runde.
+- Keine Rename-Orgie ohne klaren Nutzen.
+
+Wichtiger Zusatzauftrag zur Doku:
+
+- Pflege `docs/planning/dev_log.md` mit einem knappen neuen Eintrag für diese Konsolidierungsrunde.
+- Halte den Eintrag kurz, sachlich und entscheidungsorientiert.
+
+Bitte setze in dieser Runde gezielt nur die folgenden Punkte um:
+
+1. Markdown-Fix
+- Prüfe `docs/planning/umsetzungsplan_mvp.md` auf eine fehlerhafte schließende Code-Fence mit vier Backticks.
+- Falls vorhanden, korrigiere sie auf die normale Drei-Backtick-Variante.
+- Nimm keine sonstigen inhaltlichen Änderungen am Umsetzungsplan vor.
+
+2. RSS-Adapter: bozo-Handling robuster machen
+- In `src/infomanagerbot/adapters/rss.py` soll `bozo=True` nicht mehr pauschal als harter Fehler behandelt werden.
+- Logge stattdessen eine Warnung mit Ausnahme-Details.
+- Wirf nur dann `AdapterError`, wenn der Feed keine brauchbaren `entries` enthält oder wenn der Fehler klar auf einen unbrauchbaren Feed hinausläuft.
+- Halte die Lösung klein und pragmatisch.
+
+3. Orchestrator: source_count fachlich korrekt machen
+- In `src/infomanagerbot/orchestrator.py` soll `prepare_run()` nur die Quellen zählen, die auch tatsächlich für Discovery vorgesehen sind.
+- Verwende dafür dieselbe Filterlogik wie für die Discovery-Quellen.
+- Keine zusätzliche Orchestrierungslogik einbauen.
+
+4. RunRepository.finish_run absichern
+- In `src/infomanagerbot/persistence/repositories.py` soll `finish_run()` prüfen, ob das UPDATE tatsächlich eine Zeile getroffen hat.
+- Wenn `rowcount == 0`, wirf eine klare `RuntimeError`.
+- Commit nur bei erfolgreichem Update.
+
+5. Repository-Sync atomarer machen
+- In `PolicyRepository.sync()` und `SourceRepository.sync()` die Schleifen in `with self.connection:` ausführen, damit Commit/Rollback atomarer und sauberer sind.
+- Keine komplette Repository-Umstrukturierung.
+
+6. Adapter-Registry nicht bei jedem Aufruf neu bauen
+- In `src/infomanagerbot/adapters/registry.py` eine kleine gecachte Registry einführen.
+- Keine unnötige Komplexität, einfach und lesbar halten.
+
+7. Config-Loader: bessere Validierungsfehler
+- In `src/infomanagerbot/config/loader.py` Validation-Fehler mit kontextreichen Meldungen versehen, z. B. für Settings / Policies / Sources.
+- Ursprüngliche Exceptions sauber chainen.
+
+8. Logging-Konfiguration: ungültiges Log-Level kenntlich machen
+- In `src/infomanagerbot/logging_config.py` bei ungültigem Log-Level eine Warnung ausgeben und auf INFO zurückfallen.
+- Kein Umbau der Logging-Architektur.
+
+9. Kleine Typ-/Dokuverbesserungen nur wenn sehr günstig
+- Falls ohne Umbau sinnvoll, darfst du `DiscoveryAdapter.source_type` typmäßig etwas schärfen.
+- Falls sehr leichtgewichtig, darfst du in Feed-Zeitstempel-Parsing einen kurzen Kommentar zur UTC-Annahme ergänzen.
+- Diese beiden Punkte sind optional und nur umzusetzen, wenn sie ohne Folgeschäden klein bleiben.
+
+Bitte in dieser Runde ausdrücklich NICHT umsetzen:
+- keine Umbenennung von `DiscoveredItem.source_key`
+- keine größere Schema-Erweiterung der `items`-Tabelle
+- keine Änderungen an Test-Importstrategie Richtung `pip install -e .`
+- keine package-relative CLI-Pfad-Architektur in `main.py`
+- keine neue Migrationsrunde
+- keine neuen Features jenseits der obigen Qualitätsfixes
+
+Am Ende:
+- Zeige die angelegten/geänderten Dateien.
+- Liste kurz auf, welche Review-Hinweise du übernommen hast.
+- Nenne bewusst nicht umgesetzte Hinweise, die du absichtlich zurückgestellt hast.
+- Erwähne kurz den neuen `dev_log.md`-Eintrag.
+- Bestätige ausdrücklich, dass du NICHT gepusht und KEINEN PR erstellt hast.
+
+## PROMPT 7
+
+Du arbeitest im Repo "InfoManagerBot" auf dem aktuell ausgecheckten Feature-Branch.
+
+Wichtige Prozessanweisung:
+
+- Bleibe auf dem aktuellen Branch.
+- Führe keinen Push aus.
+- Erstelle keinen Pull Request.
+- Nimm keine Git-Operationen vor, die Branches wechseln, mergen oder remote verändern.
+- Nach Abschluss deiner Änderungen sollst du stoppen und auf unser Go warten.
+
+Ziel:
+Implementiere den ersten echten MVP-Discovery-Durchlauf: aktive Quellen sollen über die vorhandenen Adapter entdeckt werden können, neue `DiscoveredItem`s sollen dedupliziert geprüft und als erste persistierte `items` in SQLite gespeichert werden. Es geht noch NICHT um Archivierung, Markdown/JSON-Ausgabe, Transkripte, Browser-Capture oder eine vollständige End-to-End-Pipeline.
+
+Wichtige Leitplanken:
+
+- Konservativ und minimal arbeiten.
+- Bestehende Struktur respektieren.
+- Kein Overengineering.
+- Keine Archivdateien schreiben.
+- Keine Browser-Capture-Logik.
+- Keine YouTube-Transkript-Logik.
+- Keine komplexe Scheduler-/Polling-Endlosschleife.
+- Keine vollständige Retry-Engine.
+- Keine ORM-Einführung.
+- Keine große Schema-Neuerfindung.
+
+Wichtiger Zusatzauftrag zur Doku:
+
+- Pflege `docs/planning/dev_log.md` mit einem knappen neuen Eintrag für diesen Arbeitsschritt.
+- Halte den Eintrag kurz, sachlich und entscheidungsorientiert.
+
+Aufgaben:
+
+1. Implementiere eine kleine Discovery-Ausführung im Orchestrator.
+   Anforderungen:
+   - aktive Discovery-Quellen aus der Konfiguration verwenden
+   - passenden Adapter aus der Registry holen
+   - `discover(...)` aufrufen
+   - Ergebnisse pro Quelle sammeln
+   - Fehler pro Quelle sauber behandeln, ohne den gesamten Lauf unnötig sofort zu zerstören
+   - keine Endlosschleife bauen
+
+2. Erweitere die Persistenzbasis um eine kleine `ItemRepository`-Struktur.
+   Anforderungen:
+   - neue Datei oder Ergänzung in `src/infomanagerbot/persistence/repositories.py`
+   - mindestens vorbereiten für:
+     - prüfen, ob ein Item für `(source_id, external_id)` bereits existiert
+     - neues Item anlegen
+     - optional kleine List-/Lookup-Helfer, wenn wirklich nötig
+   - klein und lesbar halten
+   - keine CRUD-Lawine
+
+3. Passe das Schema nur an, wenn es für die erste Item-Persistenz wirklich nötig ist.
+   Anforderungen:
+   - Wenn zusätzliche Item-Felder in SQLite zwingend gebraucht werden, erstelle dafür eine neue Migration statt die bestehende Initialmigration still umzuschreiben.
+   - Wenn die aktuelle `items`-Tabelle für den MVP-Discovery-Schritt ausreicht, belasse das Schema.
+   - Keine große Schema-Erweiterung nur „für später vielleicht“.
+
+4. Implementiere eine kleine Persistenzabbildung von `DiscoveredItem` -> `items`.
+   Anforderungen:
+   - mindestens speichern:
+     - zugehörige Quelle
+     - `external_id`
+     - Titel
+     - URL
+     - Status
+     - Zeitstempel für Entdeckung
+   - wenn sinnvoll und ohne Schemaumbau machbar, dürfen auch `published_at` oder ähnliches berücksichtigt werden
+   - keine inhaltliche Archivierung
+
+5. Deduplizierung:
+   Anforderungen:
+   - primär auf Basis von `(source_id, external_id)`
+   - bereits vorhandene Items nicht doppelt anlegen
+   - Ergebnis des Laufs soll unterscheiden können zwischen:
+     - neu gespeichert
+     - bereits bekannt
+     - Fehler bei Discovery/Persistenz
+
+6. Run-Integration:
+   Anforderungen:
+   - vorhandene `runs`-Logik sinnvoll nutzen
+   - `prepare_run()` nicht nur vorbereiten, sondern die Discovery-Ausführung damit verbinden
+   - am Ende einen ehrlichen Run-Status setzen
+   - keine überkomplexen Laufmetriken, aber ein paar sinnvolle Zahlen oder Notizen sind willkommen, wenn sie klein bleiben
+
+7. CLI-/main-Integration:
+   Anforderungen:
+   - `main.py` so erweitern, dass der Discovery-Lauf jetzt tatsächlich ausgeführt werden kann
+   - Konsolenausgabe und Logging ehrlich halten
+   - klar machen, dass jetzt Discovery + Item-Persistenz laufen, aber Archivierung noch nicht
+
+8. Tests:
+   Lege nach Möglichkeit ein oder zwei kleine sinnvolle Tests an, zum Beispiel für:
+   - Deduplizierung / `exists`-Logik
+   - Persistenz neuer Items
+   - Orchestrator-Verhalten bei bereits bekannten Items
+   Aber:
+   - kein Test-Overkill
+   - keine riesige Testinfrastruktur
+
+9. README nur dann minimal ergänzen, wenn jetzt ein kurzer Hinweis zum aktuellen Funktionsstand sinnvoll ist.
+   Sonst lieber nicht anfassen.
+
+Wichtig:
+
+- Noch keine Markdown-/JSON-Archivartefakte.
+- Noch keine `artifacts`-Erzeugung.
+- Noch keine vollständige Pipeline über Discovery hinaus.
+- Noch keine Browser-/Transkript-Themen.
+- Keine automatische Git-Aktion.
+
+Am Ende:
+
+- Zeige die angelegten/geänderten Dateien.
+- Erkläre kurz, wie Discovery-Ausführung und Deduplizierung jetzt funktionieren.
+- Erkläre kurz, welche Item-Daten tatsächlich persistiert werden.
+- Nenne bewusst noch nicht implementierte Teile.
+- Erwähne kurz den neuen `dev_log.md`-Eintrag.
+- Bestätige ausdrücklich, dass du NICHT gepusht und KEINEN PR erstellt hast.

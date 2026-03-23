@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from infomanagerbot.config.models import PolicyModel, SourceModel
-from infomanagerbot.domain.models import Policy, Source
+from infomanagerbot.domain.models import DiscoveredItem, Policy, Source
 
 
 @dataclass(slots=True)
@@ -14,31 +14,31 @@ class PolicyRepository:
     connection: sqlite3.Connection
 
     def sync(self, policies: list[PolicyModel]) -> None:
-        for policy in policies:
-            self.connection.execute(
-                """
-                INSERT INTO policies (
-                    policy_key,
-                    enabled,
-                    archive_format,
-                    match_source_ids_json,
-                    updated_at
+        with self.connection:
+            for policy in policies:
+                self.connection.execute(
+                    """
+                    INSERT INTO policies (
+                        policy_key,
+                        enabled,
+                        archive_format,
+                        match_source_ids_json,
+                        updated_at
+                    )
+                    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    ON CONFLICT(policy_key) DO UPDATE SET
+                        enabled = excluded.enabled,
+                        archive_format = excluded.archive_format,
+                        match_source_ids_json = excluded.match_source_ids_json,
+                        updated_at = CURRENT_TIMESTAMP
+                    """,
+                    (
+                        policy.id,
+                        int(policy.enabled),
+                        policy.archive_format,
+                        json.dumps(policy.match_source_ids),
+                    ),
                 )
-                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-                ON CONFLICT(policy_key) DO UPDATE SET
-                    enabled = excluded.enabled,
-                    archive_format = excluded.archive_format,
-                    match_source_ids_json = excluded.match_source_ids_json,
-                    updated_at = CURRENT_TIMESTAMP
-                """,
-                (
-                    policy.id,
-                    int(policy.enabled),
-                    policy.archive_format,
-                    json.dumps(policy.match_source_ids),
-                ),
-            )
-        self.connection.commit()
 
     def list_all(self) -> list[Policy]:
         rows = self.connection.execute(
@@ -64,34 +64,34 @@ class SourceRepository:
     connection: sqlite3.Connection
 
     def sync(self, sources: list[SourceModel]) -> None:
-        for source in sources:
-            self.connection.execute(
-                """
-                INSERT INTO sources (
-                    source_key,
-                    source_type,
-                    enabled,
-                    display_name,
-                    locator,
-                    updated_at
+        with self.connection:
+            for source in sources:
+                self.connection.execute(
+                    """
+                    INSERT INTO sources (
+                        source_key,
+                        source_type,
+                        enabled,
+                        display_name,
+                        locator,
+                        updated_at
+                    )
+                    VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                    ON CONFLICT(source_key) DO UPDATE SET
+                        source_type = excluded.source_type,
+                        enabled = excluded.enabled,
+                        display_name = excluded.display_name,
+                        locator = excluded.locator,
+                        updated_at = CURRENT_TIMESTAMP
+                    """,
+                    (
+                        source.id,
+                        source.type.value,
+                        int(source.enabled),
+                        source.display_name,
+                        source.locator,
+                    ),
                 )
-                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                ON CONFLICT(source_key) DO UPDATE SET
-                    source_type = excluded.source_type,
-                    enabled = excluded.enabled,
-                    display_name = excluded.display_name,
-                    locator = excluded.locator,
-                    updated_at = CURRENT_TIMESTAMP
-                """,
-                (
-                    source.id,
-                    source.type.value,
-                    int(source.enabled),
-                    source.display_name,
-                    source.locator,
-                ),
-            )
-        self.connection.commit()
 
     def list_all(self) -> list[Source]:
         rows = self.connection.execute(
@@ -111,6 +111,71 @@ class SourceRepository:
             )
             for row in rows
         ]
+
+    def get_db_id_by_key(self, source_key: str) -> int | None:
+        row = self.connection.execute(
+            "SELECT id FROM sources WHERE source_key = ?",
+            (source_key,),
+        ).fetchone()
+        if row is None:
+            return None
+        return int(row["id"])
+
+
+@dataclass(slots=True)
+class ItemRepository:
+    connection: sqlite3.Connection
+
+    def exists(self, source_id: int, external_id: str) -> bool:
+        row = self.connection.execute(
+            """
+            SELECT 1
+            FROM items
+            WHERE source_id = ? AND external_id = ?
+            """,
+            (source_id, external_id),
+        ).fetchone()
+        return row is not None
+
+    def create_discovered_item(
+        self,
+        source_id: int,
+        item: DiscoveredItem,
+        run_id: int,
+        status: str = "discovered",
+    ) -> int:
+        discovered_at = datetime.now(timezone.utc).isoformat()
+        published_at = item.published_at.isoformat() if item.published_at else None
+        cursor = self.connection.execute(
+            """
+            INSERT INTO items (
+                source_id,
+                run_id,
+                external_id,
+                title,
+                url,
+                status,
+                discovered_at,
+                published_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                source_id,
+                run_id,
+                item.external_id,
+                item.title,
+                item.url,
+                status,
+                discovered_at,
+                published_at,
+            ),
+        )
+        item_id = cursor.lastrowid
+        if item_id is None:
+            raise RuntimeError("Item konnte nicht gespeichert werden.")
+        self.connection.commit()
+        return int(item_id)
 
 
 @dataclass(slots=True)
@@ -132,7 +197,7 @@ class RunRepository:
         return run_id
 
     def finish_run(self, run_id: int, status: str, notes: str | None = None) -> None:
-        self.connection.execute(
+        cursor = self.connection.execute(
             """
             UPDATE runs
             SET finished_at = ?, status = ?, notes = ?
@@ -140,4 +205,6 @@ class RunRepository:
             """,
             (datetime.now(timezone.utc).isoformat(), status, notes, run_id),
         )
+        if cursor.rowcount == 0:
+            raise RuntimeError(f"Run konnte nicht abgeschlossen werden, keine Zeile fuer id={run_id}.")
         self.connection.commit()

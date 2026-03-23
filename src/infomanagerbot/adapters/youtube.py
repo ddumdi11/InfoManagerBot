@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from hashlib import sha256
 from typing import Any, Mapping
 
@@ -15,12 +14,40 @@ from infomanagerbot.adapters.feed_common import (
 from infomanagerbot.config.models import SourceModel, SourceType
 from infomanagerbot.domain.models import DiscoveredItem
 
-LOGGER = logging.getLogger(__name__)
+YOUTUBE_FEED_URL = "https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
+YOUTUBE_CHANNEL_URL_PREFIX = "https://www.youtube.com/channel/"
+
+
+def build_feed_url(locator: str) -> str:
+    value = locator.strip()
+    if not value:
+        raise AdapterError("YouTube-Quelle hat keinen gueltigen Locator.")
+
+    if "feeds/videos.xml?channel_id=" in value:
+        return value
+
+    if value.startswith(YOUTUBE_CHANNEL_URL_PREFIX):
+        channel_id = value.removeprefix(YOUTUBE_CHANNEL_URL_PREFIX).strip("/")
+        if channel_id:
+            return YOUTUBE_FEED_URL.format(channel_id=channel_id)
+
+    if value.startswith("UC"):
+        return YOUTUBE_FEED_URL.format(channel_id=value)
+
+    raise AdapterError(
+        "YouTube-Locator muss ein Channel-Feed, eine Channel-URL oder eine Channel-ID sein."
+    )
 
 
 def build_external_id(source_key: str, entry: Mapping[str, Any]) -> str:
-    entry_id = coerce_text(entry.get("id")) or coerce_text(entry.get("guid"))
+    video_id = coerce_text(entry.get("yt_videoid"))
+    if video_id:
+        return video_id
+
+    entry_id = coerce_text(entry.get("id"))
     if entry_id:
+        if entry_id.startswith("yt:video:"):
+            return entry_id.removeprefix("yt:video:")
         return entry_id
 
     link = coerce_text(entry.get("link"))
@@ -34,7 +61,7 @@ def build_external_id(source_key: str, entry: Mapping[str, Any]) -> str:
         extract_content_text(entry) or "",
     ]
     digest = sha256("||".join(fallback_parts).encode("utf-8")).hexdigest()
-    return f"rss-fallback:{digest}"
+    return f"youtube-fallback:{digest}"
 
 
 def map_entry_to_item(source: SourceModel, entry: Mapping[str, Any]) -> DiscoveredItem:
@@ -49,24 +76,18 @@ def map_entry_to_item(source: SourceModel, entry: Mapping[str, Any]) -> Discover
     )
 
 
-class RssAtomAdapter(DiscoveryAdapter):
+class YouTubeChannelAdapter(DiscoveryAdapter):
     def __init__(self) -> None:
-        super().__init__(source_type=SourceType.RSS_ATOM)
+        super().__init__(source_type=SourceType.YOUTUBE_CHANNEL)
 
     def discover(self, source: SourceModel) -> list[DiscoveredItem]:
-        if source.type is not SourceType.RSS_ATOM:
-            raise AdapterError(f"RSS-Adapter kann Source-Typ nicht verarbeiten: {source.type}")
+        if source.type is not SourceType.YOUTUBE_CHANNEL:
+            raise AdapterError(f"YouTube-Adapter kann Source-Typ nicht verarbeiten: {source.type}")
 
-        feed = feedparser.parse(source.locator)
-        entries = getattr(feed, "entries", [])
+        feed = feedparser.parse(build_feed_url(source.locator))
         if getattr(feed, "bozo", False):
             detail = getattr(feed, "bozo_exception", "Unbekannter Feed-Fehler")
-            LOGGER.warning(
-                "RSS-Feed mit Parser-Warnung geladen: source=%s detail=%s",
-                source.id,
-                detail,
-            )
-            if not entries:
-                raise AdapterError(f"Feed konnte nicht brauchbar verarbeitet werden: {detail}")
+            raise AdapterError(f"YouTube-Feed konnte nicht verarbeitet werden: {detail}")
 
+        entries = getattr(feed, "entries", [])
         return [map_entry_to_item(source, entry) for entry in entries]

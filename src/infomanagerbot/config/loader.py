@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from pydantic import BaseModel, ValidationError
 
 from infomanagerbot.config.models import (
     AppConfig,
@@ -26,14 +27,25 @@ def _load_yaml_file(path: Path) -> dict[str, Any]:
     return data
 
 
+def _validate_config_section(
+    path: Path,
+    label: str,
+    model_class: type[BaseModel],
+) -> BaseModel:
+    try:
+        return model_class.model_validate(_load_yaml_file(path))
+    except ValidationError as error:
+        raise ValueError(f"Ungueltige {label}-Konfiguration in {path}: {error}") from error
+
+
 def load_app_config(
     settings_path: Path,
     policies_path: Path,
     sources_path: Path,
 ) -> AppConfig:
-    settings = SettingsFileModel.model_validate(_load_yaml_file(settings_path))
-    policies = PoliciesFileModel.model_validate(_load_yaml_file(policies_path))
-    sources = SourcesFileModel.model_validate(_load_yaml_file(sources_path))
+    settings = _validate_config_section(settings_path, "Settings", SettingsFileModel)
+    policies = _validate_config_section(policies_path, "Policies", PoliciesFileModel)
+    sources = _validate_config_section(sources_path, "Sources", SourcesFileModel)
 
     return AppConfig(
         settings=settings.settings,

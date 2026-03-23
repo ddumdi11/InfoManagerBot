@@ -9,11 +9,12 @@ from infomanagerbot.logging_config import setup_logging
 from infomanagerbot.orchestrator import Orchestrator
 from infomanagerbot.persistence.connection import create_connection, resolve_database_path
 from infomanagerbot.persistence.repositories import (
+    ItemRepository,
     PolicyRepository,
     RunRepository,
     SourceRepository,
 )
-from infomanagerbot.persistence.schema import apply_initial_schema
+from infomanagerbot.persistence.schema import apply_migrations
 
 LOGGER = logging.getLogger(__name__)
 
@@ -68,35 +69,45 @@ def main() -> int:
 
     database_path = resolve_database_path(app_config.settings.database_path)
     with create_connection(database_path) as connection:
-        schema_changed = apply_initial_schema(
+        applied_migrations = apply_migrations(
             connection=connection,
             migrations_dir=args.migrations_dir,
         )
-        SourceRepository(connection).sync(app_config.sources)
+        source_repository = SourceRepository(connection)
+        item_repository = ItemRepository(connection)
+        source_repository.sync(app_config.sources)
         PolicyRepository(connection).sync(app_config.policies)
 
         run_repository = RunRepository(connection)
         run_id = run_repository.create_run(status="prepared")
 
         orchestrator = Orchestrator(config=app_config)
-        run_info = orchestrator.prepare_run()
+        run_info = orchestrator.execute_discovery(
+            source_repository=source_repository,
+            item_repository=item_repository,
+            run_id=run_id,
+        )
         run_repository.finish_run(
             run_id=run_id,
-            status="prepared",
-            notes="Konfiguration und Persistenzbasis vorbereitet.",
+            status=run_info.status,
+            notes=run_info.notes,
         )
 
-    LOGGER.info("Persistenzbasis vorbereitet.")
+    LOGGER.info("Discovery-Lauf abgeschlossen: status=%s new=%s known=%s errors=%s", run_info.status, run_info.new_item_count, run_info.known_item_count, run_info.error_count)
 
     print("Projektgrundgeruest geladen.")
     print("Konfiguration erfolgreich geprueft.")
     print(
         "Persistenzbasis vorbereitet. "
-        f"Datenbank: {database_path} | Schema angewendet: {'ja' if schema_changed else 'bereits vorhanden'}."
+        f"Datenbank: {database_path} | Migrationen: {', '.join(applied_migrations) if applied_migrations else 'keine neuen'}."
     )
     print(
-        "Weitere Implementierung folgt. "
-        f"Quellen: {run_info.source_count}, Policies: {run_info.policy_count}."
+        "Discovery und Item-Persistenz wurden ausgefuehrt. "
+        f"Neue Items: {run_info.new_item_count}, bekannte Items: {run_info.known_item_count}, Fehler: {run_info.error_count}."
+    )
+    print(
+        "Archivierung und weitere Verarbeitung folgen spaeter. "
+        f"Aktive Quellen: {run_info.source_count}, verarbeitete Quellen: {run_info.processed_source_count}."
     )
     return 0
 

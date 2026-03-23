@@ -330,7 +330,7 @@ InfoManagerBot/
 ├─ .gitignore
 ├─ README.md
 └─ docker-compose.yml
-````
+```
 
 **Hinweis:**
 

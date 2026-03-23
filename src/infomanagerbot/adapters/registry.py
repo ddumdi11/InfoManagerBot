@@ -1,13 +1,18 @@
 from __future__ import annotations
 
+from functools import lru_cache
+
 from infomanagerbot.adapters.base import DiscoveryAdapter
 from infomanagerbot.adapters.rss import RssAtomAdapter
+from infomanagerbot.adapters.youtube import YouTubeChannelAdapter
 from infomanagerbot.config.models import SourceModel, SourceType
 
 
+@lru_cache(maxsize=1)
 def build_adapter_registry() -> dict[SourceType, DiscoveryAdapter]:
     return {
         SourceType.RSS_ATOM: RssAtomAdapter(),
+        SourceType.YOUTUBE_CHANNEL: YouTubeChannelAdapter(),
     }
 
 

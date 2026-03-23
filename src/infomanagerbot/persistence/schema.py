@@ -12,12 +12,6 @@ class Migration:
     path: Path
 
 
-INITIAL_MIGRATION = Migration(
-    version="001_initial_schema",
-    path=Path("migrations/001_initial_schema.sql"),
-)
-
-
 def ensure_schema_migrations_table(connection: sqlite3.Connection) -> None:
     connection.execute(
         """
@@ -54,11 +48,17 @@ def apply_migration(connection: sqlite3.Connection, migration: Migration) -> boo
     return True
 
 
-def apply_initial_schema(connection: sqlite3.Connection, migrations_dir: Path | None = None) -> bool:
-    migration = INITIAL_MIGRATION
-    if migrations_dir is not None:
-        migration = Migration(
-            version=INITIAL_MIGRATION.version,
-            path=migrations_dir / INITIAL_MIGRATION.path.name,
-        )
-    return apply_migration(connection, migration)
+def load_migrations(migrations_dir: Path) -> list[Migration]:
+    migrations: list[Migration] = []
+    for path in sorted(migrations_dir.glob("*.sql")):
+        migrations.append(Migration(version=path.stem, path=path))
+    return migrations
+
+
+def apply_migrations(connection: sqlite3.Connection, migrations_dir: Path | None = None) -> list[str]:
+    target_dir = migrations_dir or Path("migrations")
+    applied_versions: list[str] = []
+    for migration in load_migrations(target_dir):
+        if apply_migration(connection, migration):
+            applied_versions.append(migration.version)
+    return applied_versions

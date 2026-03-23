@@ -37,3 +37,9 @@ class RunInfo:
     source_count: int
     policy_count: int
     status: str
+    processed_source_count: int = 0
+    discovered_item_count: int = 0
+    new_item_count: int = 0
+    known_item_count: int = 0
+    error_count: int = 0
+    notes: str | None = None
