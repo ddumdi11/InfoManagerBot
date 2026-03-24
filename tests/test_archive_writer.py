@@ -31,10 +31,8 @@ class ArchiveWriterTests(unittest.TestCase):
 
         archive_dir = build_archive_directory(Path("output"), item)
 
-        self.assertEqual(
-            archive_dir.as_posix(),
-            "output/rss_atom/example-rss/2026-03-22_75ed6784_example-entry",
-        )
+        self.assertEqual(archive_dir.parent.as_posix(), "output/rss_atom/example-rss")
+        self.assertRegex(archive_dir.name, r"^2026-03-22_[a-f0-9]{8}_example-entry$")
 
     def test_write_item_creates_metadata_and_content(self) -> None:
         item = PersistedItem(

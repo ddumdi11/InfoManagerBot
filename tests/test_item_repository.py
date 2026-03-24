@@ -76,6 +76,22 @@ class ItemRepositoryTests(unittest.TestCase):
         self.assertTrue(self.repository.exists(source_id=1, external_id="known-entry"))
         self.assertFalse(self.repository.exists(source_id=1, external_id="other-entry"))
 
+    def test_create_discovered_item_persists_content_text(self) -> None:
+        item = DiscoveredItem(
+            source_key="example-rss",
+            external_id="entry-2",
+            title="Example with text",
+            content_text="Stored body text",
+        )
+
+        item_id = self.repository.create_discovered_item(source_id=1, item=item, run_id=11)
+        row = self.connection.execute(
+            "SELECT content_text FROM items WHERE id = ?",
+            (item_id,),
+        ).fetchone()
+
+        self.assertEqual(row["content_text"], "Stored body text")
+
 
 if __name__ == "__main__":
     unittest.main()

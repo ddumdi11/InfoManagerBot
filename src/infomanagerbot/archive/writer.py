@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from hashlib import sha1
+from hashlib import blake2s
 from pathlib import Path
 
 from infomanagerbot.domain.models import PersistedItem
@@ -16,15 +16,23 @@ def slugify(value: str, max_length: int = 60) -> str:
     return normalized[:max_length].rstrip("-") or "item"
 
 
+def sanitize_path_segment(value: str, fallback: str) -> str:
+    sanitized = re.sub(r"[^a-zA-Z0-9_-]+", "-", value.strip().lower()).strip("-")
+    sanitized = sanitized[:80].rstrip("-")
+    return sanitized or fallback
+
+
 def build_short_id(value: str, length: int = 8) -> str:
-    return sha1(value.encode("utf-8")).hexdigest()[:length]
+    return blake2s(value.encode("utf-8"), digest_size=16).hexdigest()[:length]
 
 
 def build_archive_directory(output_dir: Path, item: PersistedItem) -> Path:
     date_prefix = (item.published_at or item.discovered_at)[:10]
     short_id = build_short_id(item.external_id)
     slug = slugify(item.title)
-    return output_dir / item.source_type / item.source_key / f"{date_prefix}_{short_id}_{slug}"
+    source_type = sanitize_path_segment(item.source_type, fallback="source-type")
+    source_key = sanitize_path_segment(item.source_key, fallback="source")
+    return output_dir / source_type / source_key / f"{date_prefix}_{short_id}_{slug}"
 
 
 def build_metadata_payload(item: PersistedItem) -> dict[str, object]:
@@ -54,7 +62,7 @@ class ArchiveWriter:
         content_path = archive_dir / "content.md"
 
         metadata_path.write_text(
-            json.dumps(build_metadata_payload(item), indent=2, ensure_ascii=True) + "\n",
+            json.dumps(build_metadata_payload(item), indent=2, ensure_ascii=False) + "\n",
             encoding="utf-8",
         )
         content_path.write_text(self._build_markdown_content(item), encoding="utf-8")
@@ -78,8 +86,9 @@ class ArchiveWriter:
         lines.append(f"- Discovered At: {item.discovered_at}")
         lines.append("")
 
-        if item.content_text:
-            lines.append(item.content_text.strip())
+        content_text = item.content_text.strip() if item.content_text else ""
+        if content_text:
+            lines.append(content_text)
         else:
             lines.append("_Kein weiterer Inhalt im aktuellen Discovery-Schritt verfuegbar._")
 

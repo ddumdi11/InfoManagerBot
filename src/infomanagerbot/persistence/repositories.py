@@ -180,27 +180,42 @@ class ItemRepository:
         return int(item_id)
 
     def list_items_for_archiving(self) -> list[PersistedItem]:
-        rows = self.connection.execute(
-            """
-            SELECT
-                items.id AS item_id,
-                items.source_id,
-                sources.source_key,
-                sources.source_type,
-                items.external_id,
-                items.title,
-                items.url,
-                items.discovered_at,
-                items.published_at,
-                items.run_id,
-                items.status,
-                items.content_text
-            FROM items
-            INNER JOIN sources ON sources.id = items.source_id
-            WHERE items.status = 'discovered'
-            ORDER BY items.id
-            """
-        ).fetchall()
+        with self.connection:
+            rows = self.connection.execute(
+                """
+                SELECT
+                    items.id AS item_id,
+                    items.source_id,
+                    sources.source_key,
+                    sources.source_type,
+                    items.external_id,
+                    items.title,
+                    items.url,
+                    items.discovered_at,
+                    items.published_at,
+                    items.run_id,
+                    items.content_text
+                FROM items
+                INNER JOIN sources ON sources.id = items.source_id
+                WHERE items.status = 'discovered'
+                ORDER BY items.id
+                """
+            ).fetchall()
+
+            if not rows:
+                return []
+
+            item_ids = [int(row["item_id"]) for row in rows]
+            placeholders = ", ".join("?" for _ in item_ids)
+            self.connection.execute(
+                f"""
+                UPDATE items
+                SET status = 'archiving'
+                WHERE status = 'discovered' AND id IN ({placeholders})
+                """,
+                item_ids,
+            )
+
         return [
             PersistedItem(
                 item_id=int(row["item_id"]),
@@ -213,7 +228,7 @@ class ItemRepository:
                 discovered_at=row["discovered_at"],
                 published_at=row["published_at"],
                 run_id=row["run_id"],
-                status=row["status"],
+                status="archiving",
                 content_text=row["content_text"],
             )
             for row in rows
@@ -221,7 +236,7 @@ class ItemRepository:
 
     def mark_as_archived(self, item_id: int) -> None:
         cursor = self.connection.execute(
-            "UPDATE items SET status = 'archived' WHERE id = ?",
+            "UPDATE items SET status = 'archived' WHERE id = ? AND status = 'archiving'",
             (item_id,),
         )
         if cursor.rowcount == 0:
@@ -233,36 +248,23 @@ class ItemRepository:
 class ArtifactRepository:
     connection: sqlite3.Connection
 
-    def exists(self, item_id: int, artifact_type: str) -> bool:
-        row = self.connection.execute(
-            """
-            SELECT 1
-            FROM artifacts
-            WHERE item_id = ? AND artifact_type = ?
-            """,
-            (item_id, artifact_type),
-        ).fetchone()
-        return row is not None
-
-    def create_artifact(
+    def create_artifact_if_missing(
         self,
         item_id: int,
         artifact_type: str,
         storage_path: str,
         content_format: str,
-    ) -> int:
+    ) -> bool:
         cursor = self.connection.execute(
             """
             INSERT INTO artifacts (item_id, artifact_type, storage_path, content_format)
             VALUES (?, ?, ?, ?)
+            ON CONFLICT(item_id, artifact_type, storage_path) DO NOTHING
             """,
             (item_id, artifact_type, storage_path, content_format),
         )
-        artifact_id = cursor.lastrowid
-        if artifact_id is None:
-            raise RuntimeError("Artefakt konnte nicht registriert werden.")
         self.connection.commit()
-        return int(artifact_id)
+        return cursor.rowcount > 0
 
 
 @dataclass(slots=True)

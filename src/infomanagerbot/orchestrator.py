@@ -105,20 +105,18 @@ class Orchestrator:
             try:
                 artifact_paths = archive_writer.write_item(item)
 
-                if not artifact_repository.exists(item.item_id, "metadata"):
-                    artifact_repository.create_artifact(
-                        item_id=item.item_id,
-                        artifact_type="metadata",
-                        storage_path=str(artifact_paths["metadata"]),
-                        content_format="json",
-                    )
-                if not artifact_repository.exists(item.item_id, "content"):
-                    artifact_repository.create_artifact(
-                        item_id=item.item_id,
-                        artifact_type="content",
-                        storage_path=str(artifact_paths["content"]),
-                        content_format="markdown",
-                    )
+                artifact_repository.create_artifact_if_missing(
+                    item_id=item.item_id,
+                    artifact_type="metadata",
+                    storage_path=str(artifact_paths["metadata"]),
+                    content_format="json",
+                )
+                artifact_repository.create_artifact_if_missing(
+                    item_id=item.item_id,
+                    artifact_type="content",
+                    storage_path=str(artifact_paths["content"]),
+                    content_format="markdown",
+                )
 
                 item_repository.mark_as_archived(item.item_id)
                 run_info.archived_item_count += 1

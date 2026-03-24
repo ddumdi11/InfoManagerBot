@@ -70,6 +70,7 @@ def main() -> int:
     LOGGER.info("Konfiguration erfolgreich geprueft.")
 
     database_path = resolve_database_path(app_config.settings.database_path)
+    archive_root = Path("output").resolve()
     with create_connection(database_path) as connection:
         applied_migrations = apply_migrations(
             connection=connection,
@@ -93,7 +94,7 @@ def main() -> int:
         run_info = orchestrator.execute_archiving(
             item_repository=item_repository,
             artifact_repository=artifact_repository,
-            archive_writer=ArchiveWriter(output_dir=Path("output")),
+            archive_writer=ArchiveWriter(output_dir=archive_root),
             run_info=run_info,
         )
         run_repository.finish_run(
