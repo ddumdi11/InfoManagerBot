@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 
 from infomanagerbot.config.models import PolicyModel, SourceModel
-from infomanagerbot.domain.models import DiscoveredItem, Policy, Source
+from infomanagerbot.domain.models import DiscoveredItem, PersistedItem, Policy, Source
 
 
 @dataclass(slots=True)
@@ -156,9 +156,10 @@ class ItemRepository:
                 url,
                 status,
                 discovered_at,
-                published_at
+                published_at,
+                content_text
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 source_id,
@@ -169,6 +170,7 @@ class ItemRepository:
                 status,
                 discovered_at,
                 published_at,
+                item.content_text,
             ),
         )
         item_id = cursor.lastrowid
@@ -176,6 +178,93 @@ class ItemRepository:
             raise RuntimeError("Item konnte nicht gespeichert werden.")
         self.connection.commit()
         return int(item_id)
+
+    def list_items_for_archiving(self) -> list[PersistedItem]:
+        with self.connection:
+            rows = self.connection.execute(
+                """
+                SELECT
+                    items.id AS item_id,
+                    items.source_id,
+                    sources.source_key,
+                    sources.source_type,
+                    items.external_id,
+                    items.title,
+                    items.url,
+                    items.discovered_at,
+                    items.published_at,
+                    items.run_id,
+                    items.content_text
+                FROM items
+                INNER JOIN sources ON sources.id = items.source_id
+                WHERE items.status = 'discovered'
+                ORDER BY items.id
+                """
+            ).fetchall()
+
+            if not rows:
+                return []
+
+            item_ids = [int(row["item_id"]) for row in rows]
+            placeholders = ", ".join("?" for _ in item_ids)
+            self.connection.execute(
+                f"""
+                UPDATE items
+                SET status = 'archiving'
+                WHERE status = 'discovered' AND id IN ({placeholders})
+                """,
+                item_ids,
+            )
+
+        return [
+            PersistedItem(
+                item_id=int(row["item_id"]),
+                source_id=int(row["source_id"]),
+                source_key=row["source_key"],
+                source_type=row["source_type"],
+                external_id=row["external_id"],
+                title=row["title"],
+                url=row["url"],
+                discovered_at=row["discovered_at"],
+                published_at=row["published_at"],
+                run_id=row["run_id"],
+                status="archiving",
+                content_text=row["content_text"],
+            )
+            for row in rows
+        ]
+
+    def mark_as_archived(self, item_id: int) -> None:
+        cursor = self.connection.execute(
+            "UPDATE items SET status = 'archived' WHERE id = ? AND status = 'archiving'",
+            (item_id,),
+        )
+        if cursor.rowcount == 0:
+            raise RuntimeError(f"Item konnte nicht als archiviert markiert werden: id={item_id}.")
+        self.connection.commit()
+
+
+@dataclass(slots=True)
+class ArtifactRepository:
+    connection: sqlite3.Connection
+
+    def create_artifact_if_missing(
+        self,
+        item_id: int,
+        artifact_type: str,
+        storage_path: str,
+        content_format: str,
+    ) -> bool:
+        cursor = self.connection.execute(
+            """
+            INSERT INTO artifacts (item_id, artifact_type, storage_path, content_format)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(item_id, artifact_type, storage_path) DO NOTHING
+            """,
+            (item_id, artifact_type, storage_path, content_format),
+        )
+        self.connection.commit()
+        return cursor.rowcount > 0
 
 
 @dataclass(slots=True)

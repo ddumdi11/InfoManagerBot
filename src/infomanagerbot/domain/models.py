@@ -32,6 +32,22 @@ class DiscoveredItem:
 
 
 @dataclass(slots=True)
+class PersistedItem:
+    item_id: int
+    source_id: int
+    source_key: str
+    source_type: str
+    external_id: str
+    title: str
+    url: str | None
+    discovered_at: str
+    published_at: str | None
+    run_id: int | None
+    status: str
+    content_text: str | None = None
+
+
+@dataclass(slots=True)
 class RunInfo:
     started_at: datetime
     source_count: int
@@ -41,5 +57,6 @@ class RunInfo:
     discovered_item_count: int = 0
     new_item_count: int = 0
     known_item_count: int = 0
+    archived_item_count: int = 0
     error_count: int = 0
     notes: str | None = None

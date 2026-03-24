@@ -48,6 +48,7 @@ class OrchestratorDiscoveryTests(unittest.TestCase):
                 status TEXT NOT NULL,
                 discovered_at TEXT NOT NULL,
                 published_at TEXT,
+                content_text TEXT,
                 UNIQUE (source_id, external_id)
             );
             """

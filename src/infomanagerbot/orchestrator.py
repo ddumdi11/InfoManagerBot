@@ -4,11 +4,12 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 import logging
 
+from infomanagerbot.archive.writer import ArchiveWriter
 from infomanagerbot.adapters.registry import get_adapter_for_source
 from infomanagerbot.config.models import AppConfig, SourceModel, SourceType
 from infomanagerbot.domain.models import DiscoveredItem
 from infomanagerbot.domain.models import RunInfo
-from infomanagerbot.persistence.repositories import ItemRepository, SourceRepository
+from infomanagerbot.persistence.repositories import ArtifactRepository, ItemRepository, SourceRepository
 
 LOGGER = logging.getLogger(__name__)
 
@@ -89,6 +90,50 @@ class Orchestrator:
             f"processed_sources={run_info.processed_source_count}, "
             f"new_items={run_info.new_item_count}, "
             f"known_items={run_info.known_item_count}, "
+            f"errors={run_info.error_count}"
+        )
+        return run_info
+
+    def execute_archiving(
+        self,
+        item_repository: ItemRepository,
+        artifact_repository: ArtifactRepository,
+        archive_writer: ArchiveWriter,
+        run_info: RunInfo,
+    ) -> RunInfo:
+        for item in item_repository.list_items_for_archiving():
+            try:
+                artifact_paths = archive_writer.write_item(item)
+
+                artifact_repository.create_artifact_if_missing(
+                    item_id=item.item_id,
+                    artifact_type="metadata",
+                    storage_path=str(artifact_paths["metadata"]),
+                    content_format="json",
+                )
+                artifact_repository.create_artifact_if_missing(
+                    item_id=item.item_id,
+                    artifact_type="content",
+                    storage_path=str(artifact_paths["content"]),
+                    content_format="markdown",
+                )
+
+                item_repository.mark_as_archived(item.item_id)
+                run_info.archived_item_count += 1
+            except Exception:
+                LOGGER.exception("Archivierung fuer Item fehlgeschlagen: item_id=%s", item.item_id)
+                run_info.error_count += 1
+
+        if run_info.error_count:
+            run_info.status = "completed_with_errors"
+        else:
+            run_info.status = "completed"
+
+        run_info.notes = (
+            f"processed_sources={run_info.processed_source_count}, "
+            f"new_items={run_info.new_item_count}, "
+            f"known_items={run_info.known_item_count}, "
+            f"archived_items={run_info.archived_item_count}, "
             f"errors={run_info.error_count}"
         )
         return run_info

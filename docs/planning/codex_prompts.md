@@ -697,3 +697,228 @@ Am Ende:
 - Nenne bewusst noch nicht implementierte Teile.
 - Erwähne kurz den neuen `dev_log.md`-Eintrag.
 - Bestätige ausdrücklich, dass du NICHT gepusht und KEINEN PR erstellt hast.
+
+## Prompt 8
+
+Du arbeitest im Repo "InfoManagerBot" auf dem aktuell ausgecheckten Feature-Branch.
+
+Wichtige Prozessanweisung:
+- Bleibe auf dem aktuellen Branch.
+- Führe keinen Push aus.
+- Erstelle keinen Pull Request.
+- Nimm keine Git-Operationen vor, die Branches wechseln, mergen oder remote verändern.
+- Nach Abschluss deiner Änderungen sollst du stoppen und auf unser Go warten.
+
+Ziel:
+Implementiere die erste Archivierungsschicht für den MVP. Bereits entdeckte und in SQLite persistierte Items sollen als einfache Archivartefakte ins Dateisystem geschrieben werden. Pro neu verarbeitetem Item sollen mindestens `metadata.json` und `content.md` entstehen. Zusätzlich sollen erzeugte Artefakte in der Tabelle `artifacts` registriert werden. Es geht noch nicht um Browser-Capture, YouTube-Transkripte, Retry-Logik oder eine vollständige Produktionspipeline.
+
+Wichtige Leitplanken:
+- Konservativ und minimal arbeiten.
+- Bestehende Struktur respektieren.
+- Kein Overengineering.
+- Keine Browser-Capture-Logik.
+- Keine YouTube-Transkript-Logik.
+- Keine Volltext-Nachlade-Logik.
+- Keine Scheduler-/Daemon-Logik.
+- Keine künstliche Universal-Archiv-Engine.
+- Lesbare, kleine Dateien und Funktionen bevorzugen.
+
+Wichtiger Zusatzauftrag zur Doku:
+
+- Pflege `docs/planning/dev_log.md` mit einem knappen neuen Eintrag für diesen Arbeitsschritt.
+- Halte den Eintrag kurz, sachlich und entscheidungsorientiert.
+
+Aufgaben:
+1. Lege eine kleine Archivierungsbasis an unter:
+
+   - `src/infomanagerbot/archive/writer.py`
+   - optional kleine Hilfsdateien unter `src/infomanagerbot/archive/`, falls wirklich sinnvoll
+   Ziel:
+   - zentrale, kleine Funktionen/Klassen zum Schreiben der Archivartefakte
+
+2. Implementiere ein einfaches Archivierungsformat.
+   Anforderungen:
+   - pro Item mindestens:
+     - `metadata.json`
+     - `content.md`
+   - `metadata.json` soll die wichtigsten Metadaten strukturiert enthalten
+   - `content.md` soll lesbar und schlicht sein, keine große Template-Maschinerie
+   - keine HTML-/Rich-Export-Komplexität
+
+3. Definiere eine stabile Pfadstruktur für Archivobjekte.
+   Anforderungen:
+   - unterhalb von `output/`
+   - sinnvoll gegliedert nach Quellentyp und Quelle
+   - lesbarer, stabiler Zielpfad pro Item
+   - nicht nur titelbasiert; eine stabile ID/Short-ID soll einfließen
+   - Kollisionen vermeiden
+   - Beispielrichtung:
+     `output/<source_type>/<source_key>/<YYYY-MM-DD>_<shortid>_<slug>/`
+   - wenn nötig, kleine Hilfsfunktionen für Slug/Short-ID/Pfade ergänzen
+
+4. Erweitere die Persistenzbasis um eine kleine Artifact-Registrierung.
+   Anforderungen:
+   - Ergänzung in `src/infomanagerbot/persistence/repositories.py`
+   - mindestens:
+     - Artifact-Eintrag anlegen
+     - ggf. prüfen, ob ein bestimmter Artifact-Typ für ein Item schon registriert ist
+   - klein und lesbar halten
+   - keine CRUD-Lawine
+
+5. Implementiere eine kleine Verarbeitungslogik für bereits persistierte Items.
+   Anforderungen:
+   - finde Items, die archiviert werden sollen
+   - erzeuge pro Item `metadata.json` und `content.md`
+   - registriere die Artefakte in `artifacts`
+   - markiere das Item sinnvoll als archiviert/verarbeitet, falls dafür eine kleine Schema-Erweiterung wirklich nötig ist
+   - wenn dafür eine Schemaänderung nötig ist, lege eine neue Migration an, statt alte Migrationen umzuschreiben
+   - keine große Workflow-Engine
+
+6. Schema nur minimal erweitern, falls wirklich nötig.
+   Anforderungen:
+   - wenn für Item-Status oder Artifact-Tracking zusätzliche DB-Felder nötig sind, nutze eine neue Migration
+   - keine unnötige Schema-Ausdehnung „für später vielleicht“
+
+7. Integriere die Archivierung klein in Orchestrator und/oder `main.py`.
+   Anforderungen:
+   - nach erfolgreicher Discovery/Persistenz kann ein einfacher Archivierungsdurchlauf folgen
+   - Logging ehrlich und knapp halten
+   - klar machen, dass jetzt Discovery + Persistenz + erste Archivierung laufen
+   - noch keine komplexe Mehrphasen-Orchestrierung
+
+8. Metadateninhalt pragmatisch wählen.
+   `metadata.json` sollte mindestens etwas wie Folgendes enthalten:
+   - interne Item-ID
+   - source_key
+   - source_type
+   - external_id
+   - title
+   - url
+   - discovered_at
+   - published_at (falls vorhanden)
+   - run_id (falls vorhanden)
+   - status
+   Aber:
+   - keine unnötige Metadateninflation
+
+9. Markdown-Inhalt pragmatisch wählen.
+   `content.md` sollte mindestens enthalten:
+   - Titel als Überschrift
+   - Quelle
+   - URL
+   - Zeitstempel, soweit vorhanden
+   - eigentlichen Content-Text, soweit verfügbar
+   Falls für manche Items noch kein sinnvoller Text vorliegt, dann:
+   - ehrlicher, kleiner Hinweis statt künstlicher Fülltexte
+
+10. Tests:
+
+   Lege nach Möglichkeit ein oder zwei kleine sinnvolle Tests an, zum Beispiel für:
+
+- Pfadbildung / Slug / Short-ID
+- Schreiben von `metadata.json`
+- Registrierung von `artifacts`
+
+   Aber:
+
+   - kein Test-Overkill
+   - keine riesige Testinfrastruktur
+
+11. README nur dann minimal ergänzen, wenn jetzt ein kurzer, ehrlicher Hinweis zum neuen Archivierungsstand sinnvoll ist. Sonst lieber nicht anfassen.
+
+Wichtig:
+
+- Noch keine Browser-Quellen.
+- Noch keine Transkript-Dateien.
+- Noch keine Bild-/Screenshot-Artefakte.
+- Noch keine Volltext-Nachbeschaffung.
+- Keine automatische Git-Aktion.
+- Keine unnötige Template-Engine.
+
+Am Ende:
+
+- Zeige die angelegten/geänderten Dateien.
+- Erkläre kurz, wie Archivpfad und Artefakt-Erzeugung funktionieren.
+- Erkläre kurz, welche Metadaten in `metadata.json` landen.
+- Nenne bewusst noch nicht implementierte Teile.
+- Erwähne kurz den neuen `dev_log.md`-Eintrag.
+- Bestätige ausdrücklich, dass du NICHT gepusht und KEINEN PR erstellt hast.
+
+## Prompt 9 (Hasenfixrunde)
+
+Du arbeitest im Repo "InfoManagerBot" auf dem aktuell ausgecheckten Feature-Branch.
+
+Wichtige Prozessanweisung:
+- Bleibe auf dem aktuellen Branch.
+- Führe keinen Push aus.
+- Erstelle keinen Pull Request.
+- Nimm keine Git-Operationen vor, die Branches wechseln, mergen oder remote verändern.
+- Nach Abschluss deiner Änderungen sollst du stoppen und auf unser Go warten.
+
+Ziel:
+Führe eine kleine, gezielte Robustheitsrunde auf Basis der aktuellen Review-Hinweise durch. Kein neuer Feature-Block. Übernimm nur die aktuell sinnvollen Fixes mit kleinem, sauberem Umfang.
+
+Wichtige Leitplanken:
+- Konservativ und minimal arbeiten.
+- Bestehende Struktur respektieren.
+- Kein Overengineering.
+- Keine neuen großen Features.
+- Keine Browser-/Transcript-/Volltext-Erweiterung.
+- Keine große Workflow-Engine.
+- Keine Rename-Orgie.
+
+Wichtiger Zusatzauftrag zur Doku:
+- Pflege `docs/planning/dev_log.md` mit einem knappen neuen Eintrag für diese Konsolidierungsrunde.
+- Halte den Eintrag kurz, sachlich und entscheidungsorientiert.
+
+Bitte setze in dieser Runde gezielt diese Punkte um:
+
+1. `src/infomanagerbot/archive/writer.py`
+- Behandle `content_text` so, dass whitespace-only Strings nicht als echter Inhalt gelten.
+- Sanitiziere `source_type` und `source_key` für die Pfadbildung, damit keine problematischen Pfadsegmente entstehen.
+- Ersetze `sha1` in `build_short_id()` durch eine kleine, unkomplizierte Alternative wie `hashlib.blake2s`, ohne die öffentliche Signatur zu ändern.
+- Wenn sinnvoll, setze `ensure_ascii=False` für `metadata.json`, damit UTF-8 lesbarer bleibt.
+- Behalte die bestehende Pfadstruktur fachlich bei.
+
+2. `src/infomanagerbot/main.py`
+- Stelle sicher, dass der Archiv-Root als aufgelöster absoluter Pfad an `ArchiveWriter` übergeben wird.
+- Falls nötig, ergänze einen kleinen, sauberen Weg über CLI oder Settings, aber nur minimal.
+- Kein großer CLI-Umbau.
+
+3. `src/infomanagerbot/persistence/repositories.py`
+- Entferne die nicht-atomische `exists()` + `create_artifact()`-Denke für Artefakte.
+- Führe eine atomare Repository-Methode ein, z. B. `create_artifact_if_missing(...)`, die per `INSERT ... ON CONFLICT DO NOTHING` arbeitet.
+- Die Methode soll erkennbar machen, ob ein Artefakt neu angelegt wurde oder bereits vorhanden war.
+- Halte das Repository klein und lesbar.
+
+4. `src/infomanagerbot/orchestrator.py`
+- Nutze für die Artefaktregistrierung nur noch die atomare Repository-Methode.
+- Keine Vorab-`exists()`-Prüfung mehr für Artefakte.
+- Behalte die aktuelle Orchestrierungsstruktur klein.
+
+5. `src/infomanagerbot/persistence/repositories.py`
+- `list_items_for_archiving()` soll Items nicht nur lesen, sondern für die Verarbeitung reservieren.
+- Verwende dafür einen kleinen, SQLite-tauglichen Ansatz, z. B. Statuswechsel von `discovered` nach `archiving` innerhalb einer Transaktion, bevor die Items zurückgegeben werden.
+- `mark_as_archived()` soll sinnvoll von `archiving` nach `archived` überführen.
+- Keine komplizierte Worker-/Queue-Architektur bauen.
+
+6. Tests
+- Passe `tests/test_artifact_repository.py` so an, dass das Testschema die produktionsnahe Struktur von `artifacts` und die Foreign-Key-Situation besser widerspiegelt.
+- Ergänze in `tests/test_item_repository.py` einen kleinen Fall, der prüft, dass `content_text` wirklich persistiert wird.
+- Test-Overkill vermeiden.
+
+Bitte in dieser Runde ausdrücklich NICHT umsetzen:
+- keine neue Feature-Ebene
+- keine große Parallelverarbeitungsarchitektur
+- keine neue Archivart
+- keine Browser-/Transcript-Funktionen
+- keine generelle Test-Infrastruktur-Revolution
+- keine package/install-Architekturänderung nur wegen `sys.path`
+
+Am Ende:
+- Zeige die angelegten/geänderten Dateien.
+- Liste kurz auf, welche Review-Hinweise du übernommen hast.
+- Nenne bewusst nicht umgesetzte Hinweise, die du zurückgestellt hast.
+- Erwähne kurz den neuen `dev_log.md`-Eintrag.
+- Bestätige ausdrücklich, dass du NICHT gepusht und KEINEN PR erstellt hast.
+

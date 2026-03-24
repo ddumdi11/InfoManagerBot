@@ -32,6 +32,7 @@ class ItemRepositoryTests(unittest.TestCase):
                 status TEXT NOT NULL,
                 discovered_at TEXT NOT NULL,
                 published_at TEXT,
+                content_text TEXT,
                 UNIQUE (source_id, external_id)
             );
             INSERT INTO sources(id, source_key) VALUES (1, 'example-rss');
@@ -55,12 +56,13 @@ class ItemRepositoryTests(unittest.TestCase):
 
         self.assertGreater(item_id, 0)
         row = self.connection.execute(
-            "SELECT external_id, title, url, status, published_at FROM items WHERE id = ?",
+            "SELECT external_id, title, url, status, published_at, content_text FROM items WHERE id = ?",
             (item_id,),
         ).fetchone()
         self.assertEqual(row["external_id"], "entry-1")
         self.assertEqual(row["status"], "discovered")
         self.assertEqual(row["published_at"], "2026-03-21T12:00:00+00:00")
+        self.assertIsNone(row["content_text"])
 
     def test_exists_detects_known_item(self) -> None:
         self.connection.execute(
@@ -73,6 +75,22 @@ class ItemRepositoryTests(unittest.TestCase):
 
         self.assertTrue(self.repository.exists(source_id=1, external_id="known-entry"))
         self.assertFalse(self.repository.exists(source_id=1, external_id="other-entry"))
+
+    def test_create_discovered_item_persists_content_text(self) -> None:
+        item = DiscoveredItem(
+            source_key="example-rss",
+            external_id="entry-2",
+            title="Example with text",
+            content_text="Stored body text",
+        )
+
+        item_id = self.repository.create_discovered_item(source_id=1, item=item, run_id=11)
+        row = self.connection.execute(
+            "SELECT content_text FROM items WHERE id = ?",
+            (item_id,),
+        ).fetchone()
+
+        self.assertEqual(row["content_text"], "Stored body text")
 
 
 if __name__ == "__main__":
